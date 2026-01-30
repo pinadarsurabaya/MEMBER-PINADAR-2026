@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Member Pinadar - Final Fix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --background-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--background-color); color: var(--text-main); min-height: 100vh; padding-bottom: 2rem; }
+
+        header {
+            background: var(--card-bg);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand { font-weight: 700; font-size: 1.2rem; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
+        
+        main { max-width: 600px; margin: 1.5rem auto; padding: 0 1rem; }
+        
+        .section { display: none; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--card-bg); padding: 1.5rem; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 1rem; }
+        .card-header { font-weight: 700; font-size: 1.1rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; }
+        input, select { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+        input:focus { outline: none; border-color: var(--primary-color); }
+        
+        /* BUTTONS */
+        .btn { width: 100%; padding: 0.8rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 0.5rem; font-size: 1rem; transition: 0.2s; display: inline-flex; justify-content: center; align-items: center; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-danger { background: var(--danger-color); color: white; }
+        
+        /* Tombol Kecil */
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-danger-sm { background: var(--danger-color); color: white; }
+        .btn-outline-sm { background: transparent; border: 1px solid #cbd5e1; color: var(--text-main); width: auto; margin-top: 0; }
+        
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* LIST ITEMS */
+        .member-list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem; border-bottom: 1px solid #f1f5f9;
+        }
+        .member-info h4 { font-size: 1rem; margin-bottom: 2px; }
+        .member-info p { font-size: 0.8rem; color: var(--text-muted); }
+        .member-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .point-badge { background: #eff6ff; color: var(--primary-color); padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.9rem; }
+
+        /* TABS */
+        .tab-btn {
+            background: transparent; 
+            border: 1px solid #e2e8f0; 
+            padding: 0.6rem 1rem; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            color: var(--text-muted);
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-top: 0; /* Fix agar inline dengan button lain */
+        }
+        .tab-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+
+        /* TOAST */
+        #toast-box { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #333; color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; animation: slideUp 0.3s forwards; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .toast.error { background: var(--danger-color); }
+        .toast.success { background: var(--success-color); }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Loading Spinner */
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .hidden { display: none !important; }
+
+        /* Connection Status */
+        .status-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; text-transform: uppercase; font-weight: bold; }
+        .status-online { background: #dcfce7; color: #166534; }
+        .status-offline { background: #fee2e2; color: #991b1b; }
+
+        /* Terms */
+        .terms-list { padding-left: 1.2rem; font-size: 0.9rem; line-height: 1.5; }
+        .terms-list li { margin-bottom: 0.8rem; }
+        .highlight { color: var(--primary-color); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Pinadar Member
+            <span id="conn-status" class="status-badge status-offline">Offline</span>
+        </div>
+    </header>
+
+    <main>
+        <div id="toast-box"></div>
+
+        <!-- 1. LANDING -->
+        <section id="view-landing" class="section active">
+            <div class="card" style="text-align: center; padding: 2rem 1rem;">
+                <h2 style="margin-bottom: 1rem;">Selamat Datang</h2>
+                <button class="btn btn-primary" onclick="app.goToCustomerLogin()">Login Member</button>
+                <button class="btn btn-outline-sm" style="margin-top: 1rem; width: 100%; padding: 0.8rem;" onclick="app.goToCashierLogin()">Panel Kasir</button>
+                <button class="btn btn-outline-sm" style="margin-top: 2rem; font-size: 0.8rem;" onclick="app.showTerms()">📜 Syarat & Ketentuan</button>
+            </div>
+        </section>
+
+        <!-- 2. SYARAT -->
+        <section id="view-terms" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span>Syarat & Ketentuan</span>
+                    <button class="btn-outline-sm" onclick="app.goHome()">Tutup</button>
+                </div>
+                <ul class="terms-list">
+                    <li><strong>Masa Berlaku:</strong> Point hanya berlaku <span class="highlight">1 Tahun</span> terhitung semenjak pembuatan member.</li>
+                    <li><strong>Pengumpulan Poin:</strong> Setiap belanja <span class="highlight">Rp. 10.000</span> akan mendapatkan 1.000 Point (Rupiah) dan bersifat akumulatif.</li>
+                    <li><strong>Penukaran Poin:</strong> Penukaran point maksimal <span class="highlight">50%</span> dari total pembelanjaan atau maksimal senilai <span class="highlight">Rp 1.000.000</span>.</li>
+                    <li><strong>Kombinasi Promo:</strong> Tidak dapat digabungkan dengan promo point lainnya.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 3. LOGIN CUSTOMER -->
+        <section id="view-customer-login" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span>Login Member</span>
+                    <button class="btn-outline-sm" onclick="app.goHome()">Kembali</button>
+                </div>
+                <div class="form-group"><label>Nomor HP</label><input type="tel" id="cust-phone" placeholder="08xxxxxxxxxx"></div>
+                <div class="form-group"><label>PIN (4 digit terakhir No HP)</label><input type="password" id="cust-pin" maxlength="4" placeholder="xxxx"></div>
+                <button class="btn btn-primary" onclick="customer.login()">Masuk</button>
+            </div>
+        </section>
+
+        <!-- 4. DASHBOARD CUSTOMER -->
+        <section id="view-customer-dashboard" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span>Halo, <span id="dash-name">Member</span></span>
+                    <button class="btn-outline-sm" onclick="customer.logout()">Keluar</button>
+                </div>
+                <div style="text-align: center; padding: 2rem 0;">
+                    <div style="font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase;">Poin Anda</div>
+                    <div style="font-size: 3rem; font-weight: 800; color: var(--primary-color);" id="dash-points">0</div>
+                </div>
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; text-align: center; font-size: 0.9rem;">
+                    <strong>No HP:</strong> <span id="dash-phone"></span><br>
+                    <small id="dash-expiry" style="color: var(--text-muted); margin-top: 4px; display:block;">Berlaku hingga: -</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. LOGIN KASIR -->
+        <section id="view-cashier-login" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <span>Akses Panel Kasir</span>
+                    <button class="btn-outline-sm" onclick="app.goHome()">Kembali</button>
+                </div>
+                <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">Masukkan password akses kasir.</p>
+                <div class="form-group"><label>Password Kasir</label><input type="password" id="cashier-pass" placeholder="Masukkan Password"></div>
+                <button class="btn btn-primary" onclick="cashier.login()">Buka Panel</button>
+            </div>
+        </section>
+
+        <!-- 6. PANEL KASIR UTAMA -->
+        <section id="view-cashier-panel" class="section">
+            <!-- TAB NAVIGATION -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto;">
+                <button id="tab-btn-register" class="tab-btn active" onclick="cashier.switchTab('register')">Daftar Baru</button>
+                <button id="tab-btn-list" class="tab-btn" onclick="cashier.switchTab('list')">Daftar Member</button>
+                <button id="tab-btn-add" class="tab-btn" onclick="cashier.switchTab('add')">Tambah Poin</button>
+                <button id="tab-btn-redeem" class="tab-btn" onclick="cashier.switchTab('redeem')">Tukar Poin</button>
+            </div>
+
+            <!-- TAB 1: REGISTER -->
+            <div id="tab-register" class="card">
+                <div class="card-header">Daftar Member Baru</div>
+                <div class="form-group"><label>Nama Lengkap</label><input type="text" id="reg-name" placeholder="Nama Pelanggan"></div>
+                <div class="form-group"><label>Nomor HP</label><input type="tel" id="reg-phone" placeholder="08xxxxxxxxxx"></div>
+                <div class="form-group"><label>Poin Awal (Opsional)</label><input type="number" id="reg-points" value="0"></div>
+                <button class="btn btn-primary" id="btn-reg" onclick="cashier.register()">Simpan Member</button>
+            </div>
+
+            <!-- TAB 2: LIST -->
+            <div id="tab-list" class="card hidden">
+                <div class="card-header"><span>Data Member & Poin</span></div>
+                <div class="form-group"><input type="text" id="search-member" placeholder="Cari nama atau nomor HP..." onkeyup="cashier.renderList(this.value)"></div>
+                <div id="member-list-container" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 1rem; color: var(--text-muted);">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- TAB 3: TAMBAH POIN -->
+            <div id="tab-add" class="card hidden">
+                <div class="card-header">Tambah Poin Member</div>
+                <div class="form-group">
+                    <label>Cari Member</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="tel" id="add-phone" placeholder="Masukkan No HP Member">
+                        <!-- Tombol cari menggunakan class btn-outline-sm agar tidak biru -->
+                        <button class="btn btn-primary" style="width: auto; padding: 0.5rem 1rem;" onclick="cashier.fetchAddMember()">Cari</button>
+                    </div>
+                </div>
+
+                <div id="add-step-2" class="hidden">
+                    <div style="margin-bottom: 1rem; background: #f0f9ff; padding: 0.8rem; border-radius: 8px;">
+                        <strong>Member:</strong> <span id="add-member-name">-</span><br>
+                        <strong>Poin Saat Ini:</strong> <span id="add-current-points" style="color: var(--primary-color);">0</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Total Belanja (Rp)</label>
+                        <input type="number" id="add-amount" placeholder="Contoh: 50000" oninput="cashier.calcAddPoints()">
+                    </div>
+
+                    <div style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-bottom: 1rem; text-align: center;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Bonus Poin Didapat</div>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: var(--success-color);">
+                            +<span id="add-bonus-points">0</span> Poin
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success" onclick="cashier.processAddPoints()">Proses & Tambah Poin</button>
+                </div>
+            </div>
+
+            <!-- TAB 4: TUKAR POIN -->
+            <div id="tab-redeem" class="card hidden">
+                <div class="card-header">Tukar Poin Member</div>
+                <div class="form-group">
+                    <label>Cari Member</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="tel" id="redeem-phone" placeholder="Masukkan No HP Member">
+                        <button class="btn btn-primary" style="width: auto; padding: 0.5rem 1rem;" onclick="cashier.fetchRedeemMember()">Cari</button>
+                    </div>
+                </div>
+
+                <div id="redeem-step-2" class="hidden">
+                    <div style="margin-bottom: 1rem; background: #fff7ed; padding: 0.8rem; border-radius: 8px; border: 1px solid #fed7aa;">
+                        <strong style="color: var(--warning-color);">Mode Penukaran Poin</strong>
+                        <div style="font-size: 0.8rem; margin-top: 4px;">Maks 50% Transaksi atau Maks Rp 1.000.000</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Total Belanja (Rp)</label>
+                        <input type="number" id="redeem-amount" placeholder="Contoh: 50000" oninput="cashier.calcRedeem()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Jumlah Poin Ditukar</label>
+                        <input type="number" id="redeem-points-input" placeholder="Masukkan jumlah poin" oninput="cashier.calcRedeem()">
+                        <small id="redeem-limit-msg" style="color: var(--danger-color); font-size: 0.75rem; display:none;"></small>
+                    </div>
+
+                    <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">Potongan Harga</div>
+                        <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary-color);">
+                            - Rp <span id="redeem-discount-display">0</span>
+                        </div>
+                        <div style="font-size: 0.8rem;">Total Bayar: <strong>Rp <span id="redeem-final-pay">0</span></strong></div>
+                    </div>
+
+                    <button class="btn btn-success" onclick="cashier.processRedeem()">Proses Penukaran</button>
+                </div>
+            </div>
+
+            <button class="btn btn-danger" style="margin-top: 1rem;" onclick="cashier.logout()">Keluar Panel Kasir</button>
+        </section>
+
+    </main>
+
+    <script>
+        // --- CONFIG ---
+        const SUPABASE_URL = 'https://vgihrvdqfehcruyxrxsy.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnaWhydmRxZmVoY3J1eXhyeHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2NzkzNzAsImV4cCI6MjA4NTI1NTM3MH0.dDJqZNc8ZgyMMkTRaCuKQayc3gCYDacF4JFE3jbE80U';
+        let supabaseClient = null;
+        let isOnlineMode = true;
+        const CASHIER_PASS = "P_090925";
+        const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+        const db = {
+            tableName: 'members',
+            localKey: 'pinadar_local_members',
+
+            isExpired(member) {
+                const dateStr = member.date || member.created_at;
+                if (!dateStr) return true;
+                return (Date.now() - new Date(dateStr).getTime()) > ONE_YEAR_MS;
+            },
+
+            async getMembers() {
+                if (isOnlineMode && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from(this.tableName)
+                            .select('*')
+                            .order('date', { ascending: false });
+                        if (!error && data) return data;
+                        throw error;
+                    } catch (e) { return this.getLocalMembers(); }
+                } else { return this.getLocalMembers(); }
+            },
+
+            async getMemberByPhone(phone) {
+                if (isOnlineMode && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from(this.tableName)
+                            .select('*')
+                            .eq('phone', phone)
+                            .maybeSingle();
+                        if (!error && data) {
+                            if (this.isExpired(data)) {
+                                await this.deleteMember(data.id, data.phone); 
+                                return null; 
+                            }
+                            return data;
+                        }
+                        return null;
+                    } catch (e) { return this.getLocalMemberByPhone(phone); }
+                } else {
+                    const local = this.getLocalMemberByPhone(phone);
+                    if (local && this.isExpired(local)) {
+                        this.deleteLocalMember(local.id); return null;
+                    }
+                    return local;
+                }
+            },
+
+            async addMember(member) {
+                const existing = await this.getMemberByPhone(member.phone);
+                if (existing) throw new Error("Nomor HP sudah terdaftar!");
+                if (isOnlineMode && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from(this.tableName)
+                            .insert([{ name: member.name, phone: member.phone, points: parseInt(member.points) || 0, date: new Date().toISOString() }])
+                            .select();
+                        if (error) throw error;
+                        return data[0];
+                    } catch (e) { return this.addLocalMember(member); }
+                } else { return this.addLocalMember(member); }
+            },
+
+            async deleteMember(id, phone) {
+                const idNum = Number(id); // PENTING: Konversi ke Number untuk Supabase
+                
+                if (isOnlineMode && supabaseClient) {
+                    try {
+                        const { error } = await supabaseClient
+                            .from(this.tableName)
+                            .delete()
+                            .eq('id', idNum);
+                        
+                        if (!error) {
+                            this.deleteLocalMember(idNum);
+                            ui.toast("Member dihapus", "success");
+                        } else {
+                            throw error;
+                        }
+                    } catch (e) {
+                        this.deleteLocalMember(idNum);
+                        ui.toast("Gagal Cloud, Local dihapus", "error");
+                    }
+                } else {
+                    this.deleteLocalMember(idNum);
+                    ui.toast("Member dihapus (Local)", "success");
+                }
+            },
+
+            async updatePoints(phone, newPoints) {
+                const current = await this.getMemberByPhone(phone);
+                if (!current) throw new Error("Member tidak ditemukan");
+                if (isOnlineMode && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from(this.tableName)
+                            .update({ points: parseInt(newPoints) })
+                            .eq('phone', phone)
+                            .select()
+                            .single();
+                        if (error) throw error;
+                        return data;
+                    } catch (e) { return this.updateLocalPoints(phone, newPoints); }
+                } else { return this.updateLocalPoints(phone, newPoints); }
+            },
+
+            getLocalMembers() {
+                const data = localStorage.getItem(this.localKey);
+                let members = data ? JSON.parse(data) : [];
+                members = members.filter(m => !this.isExpired(m));
+                localStorage.setItem(this.localKey, JSON.stringify(members));
+                return members;
+            },
+            getLocalMemberByPhone(phone) { return this.getLocalMembers().find(m => m.phone === phone) || null; },
+            addLocalMember(member) { 
+                const members = this.getLocalMembers(); 
+                const newMember = { ...member, id: Date.now(), date: new Date().toISOString() }; 
+                members.push(newMember); 
+                localStorage.setItem(this.localKey, JSON.stringify(members)); 
+                return newMember; 
+            },
+            deleteLocalMember(id) {
+                let members = this.getLocalMembers();
+                members = members.filter(m => m.id !== id);
+                localStorage.setItem(this.localKey, JSON.stringify(members));
+            },
+            updateLocalPoints(phone, newPoints) {
+                const members = this.getLocalMembers();
+                const idx = members.findIndex(m => m.phone === phone);
+                if (idx !== -1) { members[idx].points = parseInt(newPoints); localStorage.setItem(this.localKey, JSON.stringify(members)); return members[idx]; }
+                throw new Error("Member tidak ditemukan");
+            }
+        };
+
+        // --- INIT ---
+        async function init() {
+            if (window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    await supabaseClient.from('members').select('id').limit(1);
+                    isOnlineMode = true;
+                    updateStatus(true);
+                } catch (e) { updateStatus(false); }
+            } else { updateStatus(false); }
+        }
+        function updateStatus(online) {
+            const badge = document.getElementById('conn-status');
+            if(online) { badge.textContent = "Online"; badge.className = "status-badge status-online"; }
+            else { badge.textContent = "Offline"; badge.className = "status-badge status-offline"; }
+        }
+
+        // --- UI ---
+        const ui = {
+            toast: (msg, type='success') => {
+                const box = document.getElementById('toast-box');
+                const el = document.createElement('div');
+                el.className = `toast ${type}`;
+                el.innerText = msg;
+                box.appendChild(el);
+                setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(),300); },3000);
+            },
+            showSection: (id) => {
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(id).classList.add('active');
+            },
+            loading: (id, isLoading, text) => {
+                const btn = document.getElementById(id);
+                if(!btn) return;
+                if(isLoading) { btn.disabled=true; btn.innerHTML=`<span class="spinner"></span> ${text}`; }
+                else { btn.disabled=false; btn.innerHTML=text; }
+            }
+        };
+
+        // --- APP NAV ---
+        window.app = {
+            goHome: () => ui.showSection('view-landing'),
+            goToCustomerLogin: () => {
+                ui.showSection('view-customer-login');
+                document.getElementById('cust-phone').value=''; document.getElementById('cust-pin').value='';
+            },
+            goToCashierLogin: () => {
+                ui.showSection('view-cashier-login');
+                document.getElementById('cashier-pass').value='';
+            },
+            showTerms: () => ui.showSection('view-terms')
+        };
+
+        // --- CUSTOMER ---
+        window.customer = {
+            login: async () => {
+                const phone = document.getElementById('cust-phone').value.trim();
+                const pin = document.getElementById('cust-pin').value.trim();
+                if(!phone || !pin) return ui.toast("Isi semua data", "error");
+                if(pin !== phone.slice(-4)) return ui.toast("PIN Salah!", "error");
+                
+                const member = await db.getMemberByPhone(phone);
+                if(member) {
+                    document.getElementById('dash-name').innerText = member.name;
+                    document.getElementById('dash-phone').innerText = member.phone;
+                    document.getElementById('dash-points').innerText = new Intl.NumberFormat('id-ID').format(member.points);
+                    const expiry = new Date(new Date(member.date || member.created_at).getTime() + ONE_YEAR_MS);
+                    document.getElementById('dash-expiry').innerText = `Berlaku hingga: ${expiry.toLocaleDateString('id-ID')}`;
+                    ui.showSection('view-customer-dashboard');
+                } else {
+                    ui.toast("Nomor HP tidak terdaftar / kedaluwarsa", "error");
+                }
+            },
+            logout: () => app.goToCustomerLogin()
+        };
+
+        // --- CASHIER ---
+        window.cashier = {
+            switchTab: (tab) => {
+                ['register','list','add','redeem'].forEach(t => {
+                    document.getElementById(`tab-${t}`).classList.add('hidden');
+                    document.getElementById(`tab-btn-${t}`).classList.remove('active');
+                });
+                document.getElementById(`tab-${tab}`).classList.remove('hidden');
+                document.getElementById(`tab-btn-${tab}`).classList.add('active');
+                if(tab==='list') cashier.renderList();
+                if(tab==='add') cashier.resetAdd();
+                if(tab==='redeem') cashier.resetRedeem();
+            },
+
+            login: () => {
+                const pass = document.getElementById('cashier-pass').value;
+                if(pass === CASHIER_PASS) {
+                    cashier.switchTab('register');
+                    ui.showSection('view-cashier-panel');
+                } else { ui.toast("Password Salah", "error"); }
+            },
+            logout: () => { app.goHome(); ui.toast("Anda telah keluar"); },
+
+            register: async () => {
+                const name = document.getElementById('reg-name').value.trim();
+                const phone = document.getElementById('reg-phone').value.trim();
+                const points = document.getElementById('reg-points').value;
+                if(!name || !phone) return ui.toast("Nama & No HP wajib", "error");
+                try {
+                    await db.addMember({name, phone, points});
+                    ui.toast("Member terdaftar!");
+                    document.getElementById('reg-name').value=''; document.getElementById('reg-phone').value=''; document.getElementById('reg-points').value='0';
+                } catch(e) { ui.toast(e.message, "error"); }
+            },
+
+            deleteMember: async (id) => {
+                if(!confirm("Yakin hapus member ini?")) return;
+                try {
+                    await db.deleteMember(id);
+                    cashier.renderList();
+                } catch(e) { ui.toast("Gagal menghapus", "error"); }
+            },
+
+            renderList: async (kw='') => {
+                const c = document.getElementById('member-list-container');
+                c.innerHTML = '<div style="text-align:center;padding:1rem;">Memuat...</div>';
+                try {
+                    let m = await db.getMembers();
+                    if(kw) { kw=kw.toLowerCase(); m=m.filter(x=>x.name.toLowerCase().includes(kw)||x.phone.includes(kw)); }
+                    if(m.length===0) { c.innerHTML='<div style="text-align:center;padding:1rem;color:#888;">Tidak ada data.</div>'; return; }
+                    c.innerHTML = m.map(x => {
+                        const exp = new Date(new Date(x.date||x.created_at).getTime()+ONE_YEAR_MS);
+                        return `
+                        <div class="member-list-item">
+                            <div style="flex:1;">
+                                <h4>${x.name}</h4>
+                                <p style="font-size:0.8rem;color:#64748b;">${x.phone}</p>
+                                <div style="font-size:0.75rem;color:#64748b;">Exp: ${exp.toLocaleDateString('id-ID')}</div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                                <div class="point-badge">${new Intl.NumberFormat('id-ID').format(x.points)} Poin</div>
+                                <!-- Kirim ID Number atau String, logic db.deleteMember handle itu -->
+                                <button class="btn-danger-sm" onclick="cashier.deleteMember(${x.id})">Hapus</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                } catch(e) { c.innerHTML='<div style="text-align:center;color:red;">Gagal memuat.</div>'; }
+            },
+
+            // ADD POINTS
+            resetAdd: () => {
+                document.getElementById('add-phone').value='';
+                document.getElementById('add-step-2').classList.add('hidden');
+                cashier.addObj = null;
+            },
+            fetchAddMember: async () => {
+                const p = document.getElementById('add-phone').value.trim();
+                if(!p) return ui.toast("Masukkan No HP","error");
+                const m = await db.getMemberByPhone(p);
+                if(m) {
+                    cashier.addObj = m;
+                    document.getElementById('add-member-name').innerText=m.name;
+                    document.getElementById('add-current-points').innerText=new Intl.NumberFormat('id-ID').format(m.points);
+                    document.getElementById('add-step-2').classList.remove('hidden');
+                    document.getElementById('add-amount').focus();
+                } else { ui.toast("Member tidak ditemukan","error"); }
+            },
+            calcAddPoints: () => {
+                const amt = parseInt(document.getElementById('add-amount').value)||0;
+                const bonus = Math.floor(amt/10000)*1000;
+                document.getElementById('add-bonus-points').innerText=new Intl.NumberFormat('id-ID').format(bonus);
+            },
+            processAddPoints: async () => {
+                const amt = parseInt(document.getElementById('add-amount').value)||0;
+                const bonus = Math.floor(amt/10000)*1000;
+                if(bonus===0) return ui.toast("Belum ada poin","error");
+                try {
+                    await db.updatePoints(cashier.addObj.phone, cashier.addObj.points+bonus);
+                    ui.toast("Poin berhasil ditambahkan!");
+                    cashier.resetAdd();
+                } catch(e) { ui.toast("Gagal simpan","error"); }
+            },
+
+            // REDEEM POINTS
+            resetRedeem: () => {
+                document.getElementById('redeem-phone').value='';
+                document.getElementById('redeem-step-2').classList.add('hidden');
+                cashier.redObj = null;
+            },
+            fetchRedeemMember: async () => {
+                const p = document.getElementById('redeem-phone').value.trim();
+                if(!p) return ui.toast("Masukkan No HP","error");
+                const m = await db.getMemberByPhone(p);
+                if(m) {
+                    cashier.redObj = m;
+                    document.getElementById('redeem-step-2').classList.remove('hidden');
+                    document.getElementById('redeem-amount').focus();
+                } else { ui.toast("Member tidak ditemukan","error"); }
+            },
+            calcRedeem: () => {
+                const total = parseInt(document.getElementById('redeem-amount').value)||0;
+                const input = parseInt(document.getElementById('redeem-points-input').value)||0;
+                const current = cashier.redObj.points;
+                const max50 = Math.floor(total*0.5);
+                const max1M = 1000000;
+                const maxRedeem = Math.min(max50, max1M);
+                let valid = input;
+                if(input > current) valid = current;
+                if(input > maxRedeem) valid = maxRedeem;
+                
+                document.getElementById('redeem-discount-display').innerText=new Intl.NumberFormat('id-ID').format(valid);
+                document.getElementById('redeem-final-pay').innerText=new Intl.NumberFormat('id-ID').format(total-valid);
+            },
+            processRedeem: async () => {
+                const total = parseInt(document.getElementById('redeem-amount').value)||0;
+                const input = parseInt(document.getElementById('redeem-points-input').value)||0;
+                const max50 = Math.floor(total*0.5);
+                const max1M = 1000000;
+                const maxRedeem = Math.min(max50, max1M);
+                const current = cashier.redObj.points;
+                let valid = input;
+                if(input > current) valid = current;
+                if(input > maxRedeem) valid = maxRedeem;
+                if(valid===0) return ui.toast("Penukaran gagal","error");
+                try {
+                    await db.updatePoints(cashier.redObj.phone, current - valid);
+                    ui.toast("Penukaran Berhasil!");
+                    cashier.resetRedeem();
+                } catch(e) { ui.toast("Gagal proses","error"); }
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>
